@@ -1,0 +1,62 @@
+name: Migrate IBEX 2.0 snapshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/migrate_ibex2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout destination
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone IBEX 2.0 source branch
+        run: |
+          git clone --depth 1 --branch spike/android-foundation-v1 \
+            https://github.com/muhbahkm/ibex-had.git /tmp/ibex-source
+
+      - name: Copy Flutter project to repository root
+        run: |
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            /tmp/ibex-source/spike/ibex_foundation/ ./
+
+          mkdir -p docs/legacy-handoff
+          cp /tmp/ibex-source/spike/CURRENT_HANDOFF.md docs/legacy-handoff/CURRENT_HANDOFF.md
+          cp /tmp/ibex-source/spike/SPIKE_EXECUTION_LOG.md docs/legacy-handoff/SPIKE_EXECUTION_LOG.md
+          cp /tmp/ibex-source/spike/FOUNDATION_SPIKE_SCOPE.md docs/legacy-handoff/FOUNDATION_SPIKE_SCOPE.md
+
+          cat > REPOSITORY_MIGRATION.md <<'EOF'
+          # IBEX 2.0 repository migration
+
+          Source repository: `muhbahkm/ibex-had`
+          Source branch: `spike/android-foundation-v1`
+          Source path: `spike/ibex_foundation/`
+
+          This repository now contains the Flutter/Dart IBEX 2.0 application at repository root.
+          The old Google AI Studio / React / TypeScript application is intentionally not copied here.
+
+          Historical spike handoff documents are retained under `docs/legacy-handoff/` for continuity.
+          EOF
+
+      - name: Commit migrated snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No migration changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: migrate IBEX 2.0 Flutter project from ibex-had"
+          git push origin HEAD:main
