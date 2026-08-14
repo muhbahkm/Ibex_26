@@ -14,7 +14,7 @@ export async function getCurrentAppUser(identity: string): Promise<AppUser | nul
   const rows = await sql`
     with _identity as materialized (
       select
-        set_config('app.current_identity', ${identity}, true),
+        set_config('app.current_user_id', ${identity}, true),
         set_config('app.auth_provider', 'neon_auth', true)
     )
     select u.*
@@ -31,7 +31,7 @@ export async function withIdentityCall<T>(identity: string, payload: unknown): P
   const rows = await sql`
     with _identity as materialized (
       select
-        set_config('app.current_identity', ${identity}, true),
+        set_config('app.current_user_id', ${identity}, true),
         set_config('app.auth_provider', 'neon_auth', true)
     )
     select public.ibex_had_create_transaction(${json}::jsonb) as result
