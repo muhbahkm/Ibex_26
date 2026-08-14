@@ -28,7 +28,7 @@ function provider() {
 export async function searchProducts(identity: string, businessId: string, query: string) {
   return (await sql`
     with _identity as materialized (
-      select set_config('app.current_identity', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
     )
     select p.* from _identity
     cross join lateral public.ibex_had_search_products(${businessId}::uuid, ${query}, 5) p
@@ -38,7 +38,7 @@ export async function searchProducts(identity: string, businessId: string, query
 export async function searchCustomers(identity: string, businessId: string, query: string) {
   return (await sql`
     with _identity as materialized (
-      select set_config('app.current_identity', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
     )
     select c.* from _identity
     cross join lateral public.ibex_had_search_customers(${businessId}::uuid, ${query}, 5) c
@@ -48,7 +48,7 @@ export async function searchCustomers(identity: string, businessId: string, quer
 export async function searchUnits(identity: string, businessId: string, query: string) {
   return (await sql`
     with _identity as materialized (
-      select set_config('app.current_identity', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
     )
     select u.* from _identity
     cross join lateral public.ibex_had_search_units(${businessId}::uuid, ${query}, 5) u
@@ -58,7 +58,7 @@ export async function searchUnits(identity: string, businessId: string, query: s
 export async function getGeneralCustomer(identity: string, businessId: string) {
   const rows = await sql`
     with _identity as materialized (
-      select set_config('app.current_identity', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
     )
     select public.ibex_had_get_general_customer(${businessId}::uuid) as id from _identity
   `;
@@ -68,7 +68,7 @@ export async function getGeneralCustomer(identity: string, businessId: string) {
 export async function getCashAccount(identity: string, businessId: string, currency: 'YER' | 'SAR' | 'USD') {
   const rows = (await sql`
     with _identity as materialized (
-      select set_config('app.current_identity', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
     )
     select c.* from _identity
     cross join lateral public.ibex_had_get_cash_summary(${businessId}::uuid) c
