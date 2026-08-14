@@ -1,7 +1,5 @@
 import OpenAI from 'openai';
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export type SaleIntent = {
   product_query: string;
   unit_query: string | null;
@@ -31,8 +29,14 @@ const schema = {
   },
 } as const;
 
+function getClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('AI_NOT_CONFIGURED');
+  return new OpenAI({ apiKey });
+}
+
 export async function interpretSaleCommand(message: string): Promise<SaleIntent> {
-  if (!process.env.OPENAI_API_KEY) throw new Error('AI_NOT_CONFIGURED');
+  const client = getClient();
 
   const response = await client.responses.create({
     model: process.env.OPENAI_MODEL ?? 'gpt-5-mini',
