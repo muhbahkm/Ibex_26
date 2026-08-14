@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth/client';
@@ -38,6 +39,7 @@ export function SignInForm() {
       <label>كلمة المرور<input name="password" type="password" autoComplete="current-password" required /></label>
       {error && <div className="error-box">{error}</div>}
       <button disabled={pending} type="submit">{pending ? 'جارٍ الدخول…' : 'تسجيل الدخول'}</button>
+      <p className="auth-switch">ليس لديك حساب؟ <Link href="/auth/sign-up">إنشاء حساب</Link></p>
     </form>
   );
 }
