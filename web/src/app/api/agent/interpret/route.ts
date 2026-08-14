@@ -4,13 +4,52 @@ import { getCashAccount, getGeneralCustomer, searchCustomers, searchProducts, se
 import { interpretSaleCommand } from '@/agent/sale-interpreter';
 
 function normalized(value: string) {
-  return value.trim().toLocaleLowerCase('ar');
+  return value
+    .normalize('NFKC')
+    .toLocaleLowerCase('en-US')
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
 }
 
-function exactOrOnly<T>(rows: T[], label: (row: T) => string, query: string) {
+function tokenScore(candidate: string, query: string) {
+  const candidateNorm = normalized(candidate);
+  const queryNorm = normalized(query);
+  if (!candidateNorm || !queryNorm) return 0;
+  if (candidateNorm === queryNorm) return 100;
+
+  const candidateTokens = new Set(candidateNorm.split(' '));
+  const queryTokens = new Set(queryNorm.split(' '));
+  const intersection = [...queryTokens].filter((token) => candidateTokens.has(token)).length;
+  const queryCoverage = intersection / queryTokens.size;
+  const candidateCoverage = intersection / candidateTokens.size;
+
+  let score = (queryCoverage * 55) + (candidateCoverage * 35);
+  if (candidateNorm.startsWith(queryNorm) || queryNorm.startsWith(candidateNorm)) score += 8;
+  if (candidateNorm.includes(queryNorm) || queryNorm.includes(candidateNorm)) score += 2;
+  return Math.min(score, 99);
+}
+
+function resolveBestMatch<T>(rows: T[], label: (row: T) => string, query: string) {
+  if (rows.length === 0) return null;
+
   const exact = rows.find((row) => normalized(label(row)) === normalized(query));
   if (exact) return exact;
-  return rows.length === 1 ? rows[0] : null;
+  if (rows.length === 1) return rows[0];
+
+  const ranked = rows
+    .map((row) => ({ row, score: tokenScore(label(row), query) }))
+    .sort((a, b) => b.score - a.score);
+
+  const best = ranked[0];
+  const second = ranked[1];
+  if (!best || best.score < 78) return null;
+  if (second && best.score - second.score < 12) return null;
+  return best.row;
 }
 
 export async function POST(request: Request) {
@@ -28,7 +67,7 @@ export async function POST(request: Request) {
     const intent = await interpretSaleCommand(message);
 
     const products = await searchProducts(session.user.id, appUser.business_id, intent.product_query);
-    const product = exactOrOnly(products, (row) => row.product_name, intent.product_query);
+    const product = resolveBestMatch(products, (row) => row.product_name, intent.product_query);
     if (!product) {
       return Response.json({
         status: 'needs_clarification',
@@ -41,7 +80,7 @@ export async function POST(request: Request) {
     let unitName = product.default_unit_name;
     if (intent.unit_query) {
       const units = await searchUnits(session.user.id, appUser.business_id, intent.unit_query);
-      const unit = exactOrOnly(units, (row) => row.unit_name, intent.unit_query);
+      const unit = resolveBestMatch(units, (row) => row.unit_name, intent.unit_query);
       if (!unit) {
         return Response.json({
           status: 'needs_clarification',
@@ -59,7 +98,7 @@ export async function POST(request: Request) {
     let partyName: string | undefined;
     if (intent.customer_query) {
       const customers = await searchCustomers(session.user.id, appUser.business_id, intent.customer_query);
-      const customer = exactOrOnly(customers, (row) => row.display_name, intent.customer_query);
+      const customer = resolveBestMatch(customers, (row) => row.display_name, intent.customer_query);
       if (!customer) {
         return Response.json({
           status: 'needs_clarification',
