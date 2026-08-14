@@ -1,0 +1,36 @@
+name: Honey Web CI
+
+on:
+  push:
+    branches: [honey-web-v1]
+    paths:
+      - 'web/**'
+      - '.github/workflows/honey-web-ci.yml'
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/honey-web-ci.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Production build
+        env:
+          NEON_AUTH_BASE_URL: https://example.neonauth.invalid/neondb/auth
+          NEON_AUTH_COOKIE_SECRET: ci-only-cookie-secret-at-least-32-characters
+          IBEX_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+        run: npm run build
