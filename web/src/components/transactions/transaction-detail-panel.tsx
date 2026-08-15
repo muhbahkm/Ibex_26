@@ -36,7 +36,7 @@ export function TransactionDetailPanel({ value, onBack, onOpenCustomer }: Props)
 
     <div className="action-tabs">
       <button type="button" onClick={printTransaction}>طباعة العملية</button>
-      {tx.customer_id && <button type="button" onClick={() => onOpenCustomer(tx.customer_id)}>فتح العميل</button>}
+      {Boolean(tx.customer_id) && <button type="button" onClick={() => onOpenCustomer(tx.customer_id)}>فتح العميل</button>}
     </div>
 
     <div className="balance-grid">
