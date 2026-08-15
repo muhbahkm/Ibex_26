@@ -5,6 +5,7 @@ import { CustomerActionPanel } from '@/components/customers/customer-action-pane
 import { CustomersPanel } from '@/components/customers/customers-panel';
 import { DebtsPanel } from '@/components/debts/debts-panel';
 import { ReportsPanel } from '@/components/reports/reports-panel';
+import { TransactionDetailPanel } from '@/components/transactions/transaction-detail-panel';
 import { TransactionsPanel } from '@/components/transactions/transactions-panel';
 
 type Props = { displayName: string; roleLabel: string; accountLinked: boolean; businessLabel: string };
@@ -118,20 +119,10 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessL
     </div>;
   }
 
-  function renderTransactionDetail(value: Record<string, unknown>) {
-    const tx = asRecord(value.transaction);
-    const items = asRows(value.items);
-    return <div className="detail-stack">
-      <div className="detail-hero"><button className="back-button" onClick={() => setDetail(null)}>رجوع</button><div><span className="eyebrow">تفاصيل العملية</span><h2>{String(tx.transaction_no ?? 'عملية')}</h2><p>{String(tx.transaction_type_label ?? tx.transaction_type ?? '')} · {formatDate(tx.transaction_datetime)} · {String(tx.customer_name ?? 'بدون طرف')}</p></div><div className="hero-stat"><small>الإجمالي</small><b>{formatNumber(tx.total_amount)} {String(tx.currency ?? '')}</b></div></div>
-      <div className="balance-grid"><div className="balance-card"><span>المدفوع</span><b>{formatNumber(tx.paid_amount)}</b><small>{String(tx.payment_status_label ?? tx.payment_status ?? '')}</small></div><div className="balance-card"><span>المتبقي</span><b>{formatNumber(tx.remaining_amount)}</b><small>{String(tx.currency ?? '')}</small></div><div className="balance-card"><span>الربح التقديري</span><b>{formatNumber(tx.estimated_profit)}</b><small>{String(tx.currency ?? '')}</small></div></div>
-      <div className="surface"><div className="surface-head"><div><strong>بنود العملية</strong><p>الكمية والسعر والتكلفة والربح لكل بند.</p></div><span className="count-pill">{items.length} بند</span></div><div className="data-list">{items.map((row) => <div className="data-row static" key={String(row.id)}><div><b>{String(row.product_name ?? '')}</b><small>{formatNumber(row.quantity)} {String(row.unit_name ?? '')} × {formatNumber(row.unit_price)} {String(row.currency ?? tx.currency ?? '')}</small></div><div className="row-meta"><b>{formatNumber(row.line_total)} {String(row.currency ?? tx.currency ?? '')}</b><small>ربح {formatNumber(row.estimated_line_profit)}</small></div></div>)}</div></div>
-    </div>;
-  }
-
   function renderOperationalSection() {
     if (detailLoading) return <div className="surface empty-state"><strong>جارٍ تحميل التفاصيل…</strong></div>;
     if (detail?.kind === 'customer') return renderCustomerDetail(detail.value);
-    if (detail?.kind === 'transaction') return renderTransactionDetail(detail.value);
+    if (detail?.kind === 'transaction') return <TransactionDetailPanel value={detail.value} onBack={() => setDetail(null)} onOpenCustomer={(id) => void openDetail('customer', id)} />;
     if (workspaceLoading) return <div className="surface empty-state"><strong>جارٍ تحميل البيانات…</strong></div>;
     if (workspaceError) return <div className="surface empty-state"><strong>تعذر تحميل البيانات</strong><p>{workspaceError}</p></div>;
 
