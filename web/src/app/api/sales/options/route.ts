@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth/server';
 import { getCurrentAppUser } from '@/lib/db/identity';
-import { getCashAccount, searchCustomers, searchProducts, searchUnits } from '@/lib/db/lookups';
+import { getCashAccount, getCustomerById, searchCustomers, searchProducts, searchUnits } from '@/lib/db/lookups';
 
 const currencies = new Set(['YER', 'SAR', 'USD']);
 
@@ -21,6 +21,13 @@ export async function GET(request: Request) {
     }
     if (kind === 'customers') {
       return Response.json({ rows: await searchCustomers(session.user.id, appUser.business_id, query) });
+    }
+    if (kind === 'customer') {
+      const id = url.searchParams.get('id')?.trim() ?? '';
+      if (!id) return Response.json({ error: 'CUSTOMER_ID_REQUIRED' }, { status: 400 });
+      const row = await getCustomerById(session.user.id, appUser.business_id, id);
+      if (!row) return Response.json({ error: 'CUSTOMER_NOT_FOUND' }, { status: 404 });
+      return Response.json({ row });
     }
     if (kind === 'units') {
       return Response.json({ rows: await searchUnits(session.user.id, appUser.business_id, query) });
