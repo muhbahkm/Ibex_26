@@ -49,6 +49,41 @@ export async function getTopProducts({ identity, businessId }: IdentityArgs, day
   return rows.map((row) => numberize(row as Record<string, unknown>, ['invoices_count','total_quantity','total_sales','total_estimated_profit']));
 }
 
+export async function getBusinessOverviewByRange({ identity, businessId }: IdentityArgs, dateFrom?: string, dateTo?: string) {
+  const rows = await sql`
+    with _identity as materialized (
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', 'neon_auth', true)
+    )
+    select o.*
+    from _identity
+    cross join lateral public.ibex_had_get_business_overview(
+      ${businessId}::uuid,
+      coalesce(${dateFrom ?? null}::date, current_date - 30),
+      coalesce(${dateTo ?? null}::date, current_date)
+    ) o
+  `;
+  const numericKeys = ['sales_count','sales_total','purchases_count','purchases_total','receipts_total','payments_total','credit_sales_total','collected_total','remaining_total','estimated_profit_total','active_transactions_count','cancelled_transactions_count'];
+  return rows.map((row) => numberize(row as BusinessOverview, numericKeys));
+}
+
+export async function getTopProductsByRange({ identity, businessId }: IdentityArgs, dateFrom?: string, dateTo?: string, currency?: Currency) {
+  const rows = await sql`
+    with _identity as materialized (
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', 'neon_auth', true)
+    )
+    select p.*
+    from _identity
+    cross join lateral public.ibex_had_get_top_products(
+      ${businessId}::uuid,
+      coalesce(${dateFrom ?? null}::date, current_date - 30),
+      coalesce(${dateTo ?? null}::date, current_date),
+      ${currency ?? null}::public.ibex_had_currency,
+      12
+    ) p
+  `;
+  return rows.map((row) => numberize(row as Record<string, unknown>, ['invoices_count','total_quantity','total_sales','total_estimated_profit']));
+}
+
 export async function getTransactionDetail({ identity, businessId }: IdentityArgs, transactionId: string) {
   const rows = await sql`with _identity as materialized (select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', 'neon_auth', true)) select public.ibex_had_get_transaction_detail(${transactionId}::uuid) as detail from _identity where exists (select 1 from public.ibex_had_transactions t where t.id=${transactionId}::uuid and t.business_id=${businessId}::uuid)`;
   return rows[0]?.detail ?? null;
