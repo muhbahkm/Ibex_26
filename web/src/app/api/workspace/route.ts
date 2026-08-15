@@ -2,6 +2,8 @@ import { auth } from '@/lib/auth/server';
 import { getCurrentAppUser } from '@/lib/db/identity';
 import { getBusinessOverview, getCustomerBalances, getCustomerDetail, getOverdueCustomers, getRecentTransactions, getTopProducts, getTransactionDetail } from '@/lib/db/workspace';
 
+const allowedDebtDays = new Set([7, 14, 30, 60, 90]);
+
 export async function GET(request: Request) {
   const { data: session } = await auth.getSession();
   if (!session?.user) return Response.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -12,6 +14,8 @@ export async function GET(request: Request) {
   const section = url.searchParams.get('section') ?? 'overview';
   const detail = url.searchParams.get('detail');
   const recordId = url.searchParams.get('id');
+  const requestedDebtDays = Number(url.searchParams.get('days') ?? 30);
+  const debtDays = allowedDebtDays.has(requestedDebtDays) ? requestedDebtDays : 30;
   const context = { identity: session.user.id, businessId: appUser.business_id };
 
   try {
@@ -24,8 +28,8 @@ export async function GET(request: Request) {
       return value ? Response.json({ detail, value }) : Response.json({ error: 'TRANSACTION_NOT_FOUND' }, { status: 404 });
     }
     if (section === 'customers') return Response.json({ section, rows: await getCustomerBalances(context, false) });
-    if (section === 'transactions') return Response.json({ section, rows: await getRecentTransactions(context, 60) });
-    if (section === 'debts') return Response.json({ section, rows: await getOverdueCustomers(context, 30) });
+    if (section === 'transactions') return Response.json({ section, rows: await getRecentTransactions(context, 120) });
+    if (section === 'debts') return Response.json({ section, rows: await getOverdueCustomers(context, debtDays), days: debtDays });
     if (section === 'reports') {
       const [rows, topProducts] = await Promise.all([getBusinessOverview(context, 30), getTopProducts(context, 30)]);
       return Response.json({ section, rows, topProducts });
