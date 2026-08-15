@@ -6,7 +6,7 @@ import { CustomersPanel } from '@/components/customers/customers-panel';
 import { DebtsPanel } from '@/components/debts/debts-panel';
 import { MobileNavigation } from '@/components/navigation/mobile-navigation';
 import { ReportsPanel } from '@/components/reports/reports-panel';
-import { ManualSalePanel } from '@/components/sales/manual-sale-panel';
+import { ManualSalePanel, type ManualSaleCustomer } from '@/components/sales/manual-sale-panel';
 import { TransactionDetailPanel } from '@/components/transactions/transaction-detail-panel';
 import { TransactionsPanel } from '@/components/transactions/transactions-panel';
 
@@ -42,6 +42,7 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessI
   const [detail, setDetail] = useState<DetailState>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [manualSale, setManualSale] = useState(false);
+  const [saleCustomer, setSaleCustomer] = useState<ManualSaleCustomer | null>(null);
 
   async function loadWorkspace(currentSection = section) {
     if (currentSection === 'chat' || !accountLinked) return;
@@ -65,7 +66,6 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessI
     setWorkspaceLoading(true);
     setWorkspaceError(null);
     setDetail(null);
-    setManualSale(false);
     fetch(`/api/workspace?section=${section}`)
       .then(async (response) => {
         const body = await response.json();
@@ -83,6 +83,7 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessI
     setDetailLoading(true);
     setWorkspaceError(null);
     setManualSale(false);
+    setSaleCustomer(null);
     try {
       const response = await fetch(`/api/workspace?detail=${kind}&id=${encodeURIComponent(String(id))}`);
       const body = await response.json();
@@ -93,6 +94,15 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessI
     } finally {
       setDetailLoading(false);
     }
+  }
+
+  function startSaleForCustomer(customer: Record<string, unknown>) {
+    const id = String(customer.customer_id ?? '');
+    if (!id) return;
+    setSaleCustomer({ id, display_name: String(customer.display_name ?? 'عميل'), phone: customer.phone ? String(customer.phone) : null, is_general_customer: Boolean(customer.is_general_customer) });
+    setSection('transactions');
+    setDetail(null);
+    setManualSale(true);
   }
 
   async function submit(event: FormEvent) {
@@ -129,7 +139,7 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessI
         <div className="hero-stat"><small>إجمالي المبيعات</small><b>{formatNumber(customer.total_sales_amount)}</b></div>
       </div>
       <div className="balance-grid">{balances.length ? balances.map((row) => <div className="balance-card" key={String(row.currency)}><span>{String(row.currency)}</span><b>{formatNumber(row.balance)}</b><small>الرصيد الحالي</small></div>) : <div className="balance-card"><span>الحساب</span><b>0</b><small>لا توجد أرصدة معلقة</small></div>}</div>
-      {customerId && <CustomerActionPanel customerId={customerId} balances={balances} onReceiptCreated={() => openDetail('customer', customerId)} />}
+      {customerId && <CustomerActionPanel customerId={customerId} balances={balances} onReceiptCreated={() => openDetail('customer', customerId)} onCreateSale={() => startSaleForCustomer(customer)} />}
       <div className="surface">
         <div className="surface-head"><div><strong>حركة الحساب</strong><p>أحدث قيود دفتر العميل.</p></div><span className="count-pill">{ledger.length} قيد</span></div>
         <div className="data-list">{ledger.map((row, index) => <div className="data-row static" key={`${row.entry_datetime}-${index}`}><div><b>{String(row.description ?? row.transaction_no ?? 'حركة حساب')}</b><small>{formatDate(row.entry_datetime)} · {String(row.currency ?? '')}</small></div><div className="row-meta"><b>{Number(row.debit_amount ?? 0) > 0 ? `+${formatNumber(row.debit_amount)}` : `-${formatNumber(row.credit_amount)}`}</b><small>الرصيد {formatNumber(row.balance_after)}</small></div></div>)}</div>
@@ -138,7 +148,7 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessI
   }
 
   function renderOperationalSection() {
-    if (manualSale && section === 'transactions') return <ManualSalePanel businessId={businessId} onCancel={() => setManualSale(false)} onCreated={(id) => { void loadWorkspace('transactions'); void openDetail('transaction', id); }} />;
+    if (manualSale && section === 'transactions') return <ManualSalePanel businessId={businessId} initialCustomer={saleCustomer} onCancel={() => { setManualSale(false); setSaleCustomer(null); }} onCreated={(id) => { setSaleCustomer(null); void loadWorkspace('transactions'); void openDetail('transaction', id); }} />;
     if (detailLoading) return <div className="surface empty-state"><strong>جارٍ تحميل التفاصيل…</strong></div>;
     if (detail?.kind === 'customer') return renderCustomerDetail(detail.value);
     if (detail?.kind === 'transaction') return <TransactionDetailPanel value={detail.value} onBack={() => setDetail(null)} onOpenCustomer={(id) => void openDetail('customer', id)} onCancelled={async (id) => { await loadWorkspace('transactions'); await openDetail('transaction', id); }} />;
@@ -155,6 +165,7 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessI
     setSection(next);
     setDetail(null);
     setManualSale(false);
+    setSaleCustomer(null);
   }
 
   return <main className="workspace">
@@ -166,7 +177,7 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessI
         <div className="conversation">{state.kind === 'idle' && <div className="welcome-card"><strong>ابدأ بأمر طبيعي</strong><p>مثال: بع كيلو سمرة SI للزبون العام بـ 20000 YER نقدًا.</p><p className="muted">سأحوّل الأمر إلى مسودة، ولن أسجل الحركة قبل موافقتك.</p></div>}{state.kind === 'loading' && <div className="welcome-card"><strong>أحلل العملية…</strong><p>{state.message}</p></div>}{state.kind === 'clarification' && <div className="welcome-card"><strong>أحتاج تحديدًا بسيطًا</strong><p>{state.value.question}</p>{state.value.candidates.map((c) => <div key={c.id} className="candidate">{c.label}</div>)}</div>}{state.kind === 'draft' && <div className="welcome-card draft-card"><strong>مسودة فاتورة مبيعات</strong><div className="draft-grid"><span>العميل</span><b>{state.value.preview.customer_name}</b><span>الصنف</span><b>{state.value.preview.product_name}</b><span>الكمية</span><b>{state.value.preview.quantity} {state.value.preview.unit_name}</b><span>سعر الوحدة</span><b>{state.value.preview.unit_price} {state.value.preview.currency}</b><span>الإجمالي</span><b>{state.value.preview.total_amount} {state.value.preview.currency}</b><span>المدفوع</span><b>{state.value.preview.paid_amount} {state.value.preview.currency}</b><span>المتبقي</span><b>{state.value.preview.remaining_amount} {state.value.preview.currency}</b></div><div className="draft-actions"><button className="secondary" onClick={() => setState({ kind: 'idle' })}>إلغاء</button><button onClick={confirm}>اعتماد العملية</button></div></div>}{state.kind === 'success' && <div className="welcome-card"><strong>تم اعتماد العملية</strong><p>رقم العملية: <b>{state.transactionNo}</b></p><button onClick={() => setState({ kind: 'idle' })}>عملية جديدة</button></div>}{state.kind === 'error' && <div className="welcome-card"><strong>تعذر إكمال الطلب</strong><p>{state.message}</p><button onClick={() => setState({ kind: 'idle' })}>إعادة المحاولة</button></div>}</div>
         <form className="composer" onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="اكتب العملية أو السؤال هنا…" rows={2} disabled={!accountLinked} /><button disabled={!accountLinked || state.kind === 'loading'} type="submit">إرسال</button></form>
       </> : <>
-        <div className="operations-toolbar"><div><b>{manualSale ? 'فاتورة مبيعات جديدة' : detail ? 'عرض التفاصيل' : sectionTitle(section)}</b><small>{manualSale ? 'مسار يدوي كامل مع مراجعة قبل الاعتماد' : detail ? 'إجراءات وقراءة تشغيلية من بيانات IBEX الفعلية' : 'واجهة تشغيل مباشرة للبيانات الفعلية في IBEX'}</small></div>{section === 'transactions' && !detail && !manualSale && <button className="toolbar-primary" onClick={() => setManualSale(true)}>+ فاتورة جديدة</button>}</div>
+        <div className="operations-toolbar"><div><b>{manualSale ? (saleCustomer ? `فاتورة جديدة · ${saleCustomer.display_name}` : 'فاتورة مبيعات جديدة') : detail ? 'عرض التفاصيل' : sectionTitle(section)}</b><small>{manualSale ? 'مسار يدوي كامل مع مراجعة قبل الاعتماد' : detail ? 'إجراءات وقراءة تشغيلية من بيانات IBEX الفعلية' : 'واجهة تشغيل مباشرة للبيانات الفعلية في IBEX'}</small></div>{section === 'transactions' && !detail && !manualSale && <button className="toolbar-primary" onClick={() => { setSaleCustomer(null); setManualSale(true); }}>+ فاتورة جديدة</button>}</div>
         <div className="operations-content">{renderOperationalSection()}</div>
       </>}
     </section>
