@@ -11,6 +11,7 @@ type Props = {
   customerId: string;
   balances: BalanceRow[];
   onReceiptCreated: () => Promise<void> | void;
+  onCreateSale?: () => void;
 };
 
 function formatNumber(value: unknown) {
@@ -38,7 +39,7 @@ function messageFor(code: string) {
   return 'تعذر إكمال الإجراء. حاول مرة أخرى.';
 }
 
-export function CustomerActionPanel({ customerId, balances, onReceiptCreated }: Props) {
+export function CustomerActionPanel({ customerId, balances, onReceiptCreated, onCreateSale }: Props) {
   const positiveBalances = useMemo(() => balances
     .map((row) => ({ currency: String(row.currency) as Currency, balance: Number(row.balance ?? 0) }))
     .filter((row) => ['YER', 'SAR', 'USD'].includes(row.currency) && row.balance > 0), [balances]);
@@ -157,8 +158,9 @@ export function CustomerActionPanel({ customerId, balances, onReceiptCreated }: 
 
   return <section className="customer-actions surface">
     <div className="surface-head action-head">
-      <div><strong>إجراءات العميل</strong><p>التحصيل وكشف الحساب من نفس الملف، دون مغادرة السياق.</p></div>
+      <div><strong>إجراءات العميل</strong><p>الفوترة والتحصيل وكشف الحساب من نفس الملف، دون مغادرة السياق.</p></div>
       <div className="action-tabs">
+        {onCreateSale && <button onClick={onCreateSale}>فاتورة مبيعات</button>}
         <button className={mode === 'receipt' ? 'active' : ''} onClick={() => { setMode(mode === 'receipt' ? 'none' : 'receipt'); setNotice(null); setPendingReceipt(null); }}>سند قبض</button>
         <button className={mode === 'statement' ? 'active' : ''} onClick={() => { setMode(mode === 'statement' ? 'none' : 'statement'); setNotice(null); setPendingReceipt(null); }}>كشف حساب</button>
       </div>
