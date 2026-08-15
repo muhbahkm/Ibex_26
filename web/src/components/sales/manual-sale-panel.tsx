@@ -5,13 +5,14 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 type Currency = 'YER' | 'SAR' | 'USD';
 type PaymentStatus = 'cash' | 'credit' | 'partial';
 type Product = { id: string; product_name: string; category: string | null; default_unit_id: string | null; default_unit_name: string | null; default_sale_price: number; default_currency: Currency };
-type Customer = { id: string; display_name: string; phone: string | null; is_general_customer: boolean };
+export type ManualSaleCustomer = { id: string; display_name: string; phone: string | null; is_general_customer: boolean };
 type Unit = { id: string; unit_name: string; unit_code: string | null };
 type CashRow = { cash_account_id: string; currency: Currency; is_active: boolean };
 type PendingSale = { draft: Record<string, unknown>; summary: { customer: string; product: string; unit: string; quantity: number; unitPrice: number; total: number; paid: number; remaining: number; currency: Currency; paymentStatus: PaymentStatus } };
 
 type Props = {
   businessId: string;
+  initialCustomer?: ManualSaleCustomer | null;
   onCancel: () => void;
   onCreated: (transactionId: string) => void;
 };
@@ -30,16 +31,16 @@ async function lookup(kind: string, query = '', currency?: Currency) {
   return body;
 }
 
-export function ManualSalePanel({ businessId, onCancel, onCreated }: Props) {
+export function ManualSalePanel({ businessId, initialCustomer = null, onCancel, onCreated }: Props) {
   const submitLock = useRef(false);
   const [productQuery, setProductQuery] = useState('');
-  const [customerQuery, setCustomerQuery] = useState('زبون عام');
+  const [customerQuery, setCustomerQuery] = useState(initialCustomer?.display_name ?? 'زبون عام');
   const [unitQuery, setUnitQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<ManualSaleCustomer[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
-  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [customer, setCustomer] = useState<ManualSaleCustomer | null>(initialCustomer);
   const [unit, setUnit] = useState<Unit | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [unitPrice, setUnitPrice] = useState('');
@@ -61,17 +62,18 @@ export function ManualSalePanel({ businessId, onCancel, onCreated }: Props) {
   }, [productQuery]);
 
   useEffect(() => {
+    if (initialCustomer && customer?.id === initialCustomer.id) return;
     let active = true;
     const timer = window.setTimeout(() => {
       lookup('customers', customerQuery).then((body) => {
         if (!active) return;
-        const rows = Array.isArray(body.rows) ? body.rows as Customer[] : [];
+        const rows = Array.isArray(body.rows) ? body.rows as ManualSaleCustomer[] : [];
         setCustomers(rows);
         if (!customer && rows.length === 1 && rows[0].is_general_customer) setCustomer(rows[0]);
       }).catch(() => { if (active) setCustomers([]); });
     }, 180);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [customerQuery, customer]);
+  }, [customerQuery, customer, initialCustomer]);
 
   useEffect(() => {
     let active = true;
@@ -196,7 +198,7 @@ export function ManualSalePanel({ businessId, onCancel, onCreated }: Props) {
   return <section className="detail-stack manual-sale">
     <div className="detail-hero">
       <button className="back-button" onClick={onCancel}>رجوع</button>
-      <div><span className="eyebrow">إجراء تشغيلي</span><h2>فاتورة مبيعات جديدة</h2><p>أنشئ الفاتورة يدويًا دون استخدام المحادثة، ثم راجعها قبل الاعتماد.</p></div>
+      <div><span className="eyebrow">إجراء تشغيلي</span><h2>فاتورة مبيعات جديدة</h2><p>{initialCustomer ? `فاتورة جديدة للعميل ${initialCustomer.display_name}، ثم مراجعة قبل الاعتماد.` : 'أنشئ الفاتورة يدويًا دون استخدام المحادثة، ثم راجعها قبل الاعتماد.'}</p></div>
       <div className="hero-stat"><small>الإجمالي الحالي</small><b>{money(total)} {currency}</b></div>
     </div>
 
