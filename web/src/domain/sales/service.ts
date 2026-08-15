@@ -1,4 +1,5 @@
 import { getCurrentAppUser, withIdentityCall } from '@/lib/db/identity';
+import { searchCustomers, searchProducts, searchUnits } from '@/lib/db/lookups';
 import { saleDraftSchema, type SaleDraft } from './contracts';
 
 export type ConfirmedSale = {
@@ -12,12 +13,32 @@ export type ConfirmedSale = {
   estimated_profit: number;
 };
 
+async function assertBusinessScopedReferences(authIdentity: string, businessId: string, draft: SaleDraft) {
+  if (draft.customer_id) {
+    const customerQuery = draft.party_name || draft.party_phone || '';
+    const customers = await searchCustomers(authIdentity, businessId, customerQuery);
+    if (!customers.some((row) => row.id === draft.customer_id)) throw new Error('CUSTOMER_SCOPE_MISMATCH');
+  }
+
+  for (const item of draft.items) {
+    if (item.product_id) {
+      const products = await searchProducts(authIdentity, businessId, item.product_name);
+      if (!products.some((row) => row.id === item.product_id)) throw new Error('PRODUCT_SCOPE_MISMATCH');
+    }
+    if (item.unit_id) {
+      const units = await searchUnits(authIdentity, businessId, item.unit_name);
+      if (!units.some((row) => row.id === item.unit_id)) throw new Error('UNIT_SCOPE_MISMATCH');
+    }
+  }
+}
+
 export async function confirmSale(authIdentity: string, rawDraft: unknown): Promise<ConfirmedSale> {
   const appUser = await getCurrentAppUser(authIdentity);
   if (!appUser) throw new Error('ACCOUNT_NOT_LINKED');
 
   const draft: SaleDraft = saleDraftSchema.parse(rawDraft);
   if (draft.business_id !== appUser.business_id) throw new Error('BUSINESS_SCOPE_MISMATCH');
+  await assertBusinessScopedReferences(authIdentity, appUser.business_id, draft);
 
   return withIdentityCall<ConfirmedSale>(authIdentity, {
     ...draft,
