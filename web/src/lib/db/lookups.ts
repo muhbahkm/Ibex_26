@@ -55,6 +55,56 @@ export async function searchUnits(identity: string, businessId: string, query: s
   `) as UnitRow[];
 }
 
+export async function getCustomerById(identity: string, businessId: string, customerId: string) {
+  const rows = (await sql`
+    with _identity as materialized (
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
+    )
+    select c.id, c.display_name, c.phone, c.is_general_customer
+    from _identity
+    cross join public.ibex_had_customers c
+    where c.business_id = ${businessId}::uuid
+      and c.id = ${customerId}::uuid
+      and c.is_active = true
+    limit 1
+  `) as CustomerRow[];
+  return rows[0] ?? null;
+}
+
+export async function getProductById(identity: string, businessId: string, productId: string) {
+  const rows = (await sql`
+    with _identity as materialized (
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
+    )
+    select p.id, p.product_name, p.category, p.default_unit_id,
+      u.unit_name as default_unit_name, p.default_sale_price, p.default_cost, p.default_currency
+    from _identity
+    cross join public.ibex_had_products p
+    left join public.ibex_had_units u on u.id = p.default_unit_id
+    where p.business_id = ${businessId}::uuid
+      and p.id = ${productId}::uuid
+      and p.is_active = true
+    limit 1
+  `) as ProductRow[];
+  return rows[0] ?? null;
+}
+
+export async function getUnitById(identity: string, businessId: string, unitId: string) {
+  const rows = (await sql`
+    with _identity as materialized (
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', ${provider()}, true)
+    )
+    select u.id, u.unit_name, u.unit_code
+    from _identity
+    cross join public.ibex_had_units u
+    where u.business_id = ${businessId}::uuid
+      and u.id = ${unitId}::uuid
+      and u.is_active = true
+    limit 1
+  `) as UnitRow[];
+  return rows[0] ?? null;
+}
+
 export async function getGeneralCustomer(identity: string, businessId: string) {
   const rows = await sql`
     with _identity as materialized (
