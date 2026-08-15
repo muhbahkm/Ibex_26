@@ -8,7 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "audit:boundaries": "node scripts/audit-boundaries.mjs",
-    "test:contracts": "node --experimental-strip-types src/lib/contracts/workspace.contracts.test.ts"
+    "test:contracts": "node --experimental-strip-types scripts/test-workspace-contracts.mjs"
   },
   "dependencies": {
     "@neondatabase/auth": "latest",
