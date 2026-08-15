@@ -2,16 +2,18 @@ import { sql } from '@/lib/db/neon';
 
 type IdentityArgs = { identity: string; businessId: string };
 
+type Currency = 'YER' | 'SAR' | 'USD';
+
 export type RecentTransaction = {
   id: string; transaction_no: string; transaction_type: string; transaction_status: string;
-  transaction_datetime: string; currency: 'YER' | 'SAR' | 'USD'; customer_name: string | null;
+  transaction_datetime: string; currency: Currency; customer_name: string | null;
   customer_phone: string | null; payment_status: string; total_amount: number; paid_amount: number;
   remaining_amount: number; estimated_profit: number; cash_account_name: string | null; notes: string | null;
 };
 
-export type CustomerBalance = { customer_id: string; display_name: string; phone: string | null; currency: 'YER' | 'SAR' | 'USD'; balance: number; last_transaction_at: string | null };
+export type CustomerBalance = { customer_id: string; display_name: string; phone: string | null; currency: Currency; balance: number; last_transaction_at: string | null };
 export type OverdueCustomer = CustomerBalance & { last_ledger_activity_at: string | null; days_since_last_activity: number | null };
-export type BusinessOverview = { currency: 'YER' | 'SAR' | 'USD'; sales_count: number; sales_total: number; purchases_count: number; purchases_total: number; receipts_total: number; payments_total: number; credit_sales_total: number; collected_total: number; remaining_total: number; estimated_profit_total: number; active_transactions_count: number; cancelled_transactions_count: number };
+export type BusinessOverview = { currency: Currency; sales_count: number; sales_total: number; purchases_count: number; purchases_total: number; receipts_total: number; payments_total: number; credit_sales_total: number; collected_total: number; remaining_total: number; estimated_profit_total: number; active_transactions_count: number; cancelled_transactions_count: number };
 
 function numberize<T extends Record<string, unknown>>(row: T, keys: string[]) {
   const result = { ...row } as Record<string, unknown>;
@@ -19,9 +21,7 @@ function numberize<T extends Record<string, unknown>>(row: T, keys: string[]) {
   return result as T;
 }
 
-function identityCte(identity: string) {
-  return identity;
-}
+function identityCte(identity: string) { return identity; }
 
 export async function getRecentTransactions({ identity, businessId }: IdentityArgs, limit = 30) {
   const rows = await sql`with _identity as materialized (select set_config('app.current_user_id', ${identityCte(identity)}, true), set_config('app.auth_provider', 'neon_auth', true)) select t.* from _identity cross join lateral public.ibex_had_get_recent_transactions(${businessId}::uuid, ${limit}) t`;
@@ -67,4 +67,29 @@ export async function getCustomerDetail({ identity, businessId }: IdentityArgs, 
     balances: balances.filter((row) => row.customer_id === customerId),
     ledger: ledgerRows.map((row) => numberize(row as Record<string, unknown>, ['debit_amount','credit_amount','balance_after'])),
   };
+}
+
+export async function getCustomerStatement(
+  { identity, businessId }: IdentityArgs,
+  customerId: string,
+  currency?: Currency,
+  dateFrom?: string,
+  dateTo?: string,
+) {
+  const rows = await sql`
+    with _identity as materialized (
+      select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', 'neon_auth', true)
+    )
+    select s.*
+    from _identity
+    cross join lateral public.ibex_had_get_customer_statement_detailed(
+      ${businessId}::uuid,
+      ${customerId}::uuid,
+      ${currency ?? null}::public.ibex_had_currency,
+      ${dateFrom ?? null}::date,
+      ${dateTo ?? null}::date
+    ) s
+    order by s.entry_datetime asc
+  `;
+  return rows.map((row) => numberize(row as Record<string, unknown>, ['debit_amount','credit_amount','balance_after']));
 }
