@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { CustomerActionPanel } from '@/components/customers/customer-action-panel';
+import { CustomersPanel } from '@/components/customers/customers-panel';
 import { DebtsPanel } from '@/components/debts/debts-panel';
 import { ReportsPanel } from '@/components/reports/reports-panel';
 import { TransactionsPanel } from '@/components/transactions/transactions-panel';
@@ -35,7 +36,6 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessL
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
   const [detail, setDetail] = useState<DetailState>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
@@ -56,13 +56,6 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessL
       .finally(() => { if (!cancelled) setWorkspaceLoading(false); });
     return () => { cancelled = true; };
   }, [section, accountLinked]);
-
-  const filteredRows = useMemo(() => {
-    const rows = workspace?.rows ?? [];
-    const normalized = query.trim().toLocaleLowerCase('ar');
-    if (!normalized) return rows;
-    return rows.filter((row) => Object.values(row).some((value) => String(value ?? '').toLocaleLowerCase('ar').includes(normalized)));
-  }, [workspace, query]);
 
   async function openDetail(kind: 'customer' | 'transaction', id: unknown) {
     if (!id) return;
@@ -142,7 +135,7 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessL
     if (workspaceLoading) return <div className="surface empty-state"><strong>جارٍ تحميل البيانات…</strong></div>;
     if (workspaceError) return <div className="surface empty-state"><strong>تعذر تحميل البيانات</strong><p>{workspaceError}</p></div>;
 
-    if (section === 'customers') return <div className="surface"><div className="surface-head"><div><strong>حسابات العملاء</strong><p>الأرصدة مفصولة حسب العملة، مع آخر حركة ظاهرة.</p></div><span className="count-pill">{filteredRows.length} حساب</span></div><div className="data-list">{filteredRows.map((row) => <button className="data-row" onClick={() => openDetail('customer', row.customer_id)} key={`${row.customer_id}-${row.currency}`}><div><b>{String(row.display_name ?? 'بدون اسم')}</b><small>{row.phone ? String(row.phone) : 'لا يوجد رقم هاتف'}</small></div><div className="row-meta"><b>{formatNumber(row.balance)} {String(row.currency)}</b><small>آخر حركة {formatDate(row.last_transaction_at)}</small></div></button>)}</div></div>;
+    if (section === 'customers') return <CustomersPanel rows={workspace?.rows ?? []} onOpen={(id) => void openDetail('customer', id)} />;
     if (section === 'transactions') return <TransactionsPanel rows={workspace?.rows ?? []} onOpen={(id) => void openDetail('transaction', id)} />;
     if (section === 'debts') return <DebtsPanel initialRows={workspace?.rows ?? []} onOpenCustomer={(id) => void openDetail('customer', id)} />;
     if (section === 'reports') return <ReportsPanel initialOverview={workspace?.rows ?? []} initialTopProducts={workspace?.topProducts ?? []} />;
@@ -150,14 +143,14 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessL
   }
 
   return <main className="workspace">
-    <aside className="sidebar"><div className="brand"><span className="brand-mark small">B</span><div><strong>باحكم</strong><small>المساعد التشغيلي</small></div></div><nav>{tabs.map((tab) => <button key={tab.id} className={section === tab.id ? 'active' : ''} onClick={() => { setSection(tab.id); setQuery(''); setDetail(null); }}>{tab.label}</button>)}</nav><div className="user-card"><span>{displayName}</span><small>{roleLabel}</small></div></aside>
+    <aside className="sidebar"><div className="brand"><span className="brand-mark small">B</span><div><strong>باحكم</strong><small>المساعد التشغيلي</small></div></div><nav>{tabs.map((tab) => <button key={tab.id} className={section === tab.id ? 'active' : ''} onClick={() => { setSection(tab.id); setDetail(null); }}>{tab.label}</button>)}</nav><div className="user-card"><span>{displayName}</span><small>{roleLabel}</small></div></aside>
     <section className="chat">
       <header><div><h1>{sectionTitle(section)}</h1><p>{accountLinked ? businessLabel : 'تم تسجيل الدخول، لكن يلزم ربط الحساب بمستخدم IBEX قبل تنفيذ العمليات المالية.'}</p></div><span className={accountLinked ? 'status ok' : 'status warn'}>{accountLinked ? 'جاهز' : 'بحاجة إلى ربط'}</span></header>
       {section === 'chat' ? <>
         <div className="conversation">{state.kind === 'idle' && <div className="welcome-card"><strong>ابدأ بأمر طبيعي</strong><p>مثال: بع كيلو سمرة SI للزبون العام بـ 20000 YER نقدًا.</p><p className="muted">سأحوّل الأمر إلى مسودة، ولن أسجل الحركة قبل موافقتك.</p></div>}{state.kind === 'loading' && <div className="welcome-card"><strong>أحلل العملية…</strong><p>{state.message}</p></div>}{state.kind === 'clarification' && <div className="welcome-card"><strong>أحتاج تحديدًا بسيطًا</strong><p>{state.value.question}</p>{state.value.candidates.map((c) => <div key={c.id} className="candidate">{c.label}</div>)}</div>}{state.kind === 'draft' && <div className="welcome-card draft-card"><strong>مسودة فاتورة مبيعات</strong><div className="draft-grid"><span>العميل</span><b>{state.value.preview.customer_name}</b><span>الصنف</span><b>{state.value.preview.product_name}</b><span>الكمية</span><b>{state.value.preview.quantity} {state.value.preview.unit_name}</b><span>سعر الوحدة</span><b>{state.value.preview.unit_price} {state.value.preview.currency}</b><span>الإجمالي</span><b>{state.value.preview.total_amount} {state.value.preview.currency}</b><span>المدفوع</span><b>{state.value.preview.paid_amount} {state.value.preview.currency}</b><span>المتبقي</span><b>{state.value.preview.remaining_amount} {state.value.preview.currency}</b></div><div className="draft-actions"><button className="secondary" onClick={() => setState({ kind: 'idle' })}>إلغاء</button><button onClick={confirm}>اعتماد العملية</button></div></div>}{state.kind === 'success' && <div className="welcome-card"><strong>تم اعتماد العملية</strong><p>رقم العملية: <b>{state.transactionNo}</b></p><button onClick={() => setState({ kind: 'idle' })}>عملية جديدة</button></div>}{state.kind === 'error' && <div className="welcome-card"><strong>تعذر إكمال الطلب</strong><p>{state.message}</p><button onClick={() => setState({ kind: 'idle' })}>إعادة المحاولة</button></div>}</div>
         <form className="composer" onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="اكتب العملية أو السؤال هنا…" rows={2} disabled={!accountLinked} /><button disabled={!accountLinked || state.kind === 'loading'} type="submit">إرسال</button></form>
       </> : <>
-        <div className="operations-toolbar"><div><b>{detail ? 'عرض التفاصيل' : sectionTitle(section)}</b><small>{detail ? 'إجراءات وقراءة تشغيلية من بيانات IBEX الفعلية' : 'واجهة تشغيل مباشرة للبيانات الفعلية في IBEX'}</small></div>{!detail && section === 'customers' && <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="بحث سريع…" />}</div>
+        <div className="operations-toolbar"><div><b>{detail ? 'عرض التفاصيل' : sectionTitle(section)}</b><small>{detail ? 'إجراءات وقراءة تشغيلية من بيانات IBEX الفعلية' : 'واجهة تشغيل مباشرة للبيانات الفعلية في IBEX'}</small></div></div>
         <div className="operations-content">{renderOperationalSection()}</div>
       </>}
     </section>
