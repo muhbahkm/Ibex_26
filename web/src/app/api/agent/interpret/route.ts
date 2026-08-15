@@ -152,7 +152,6 @@ export async function POST(request: Request) {
         unit_name: unitName,
         quantity: intent.quantity,
         unit_price: unitPrice,
-        estimated_unit_cost: Number(product.default_cost ?? 0),
         category: product.category ?? undefined,
       }],
     };
