@@ -24,6 +24,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Runtime boundary audit
+        run: npm run audit:boundaries
       - name: Typecheck
         run: npm run typecheck
       - name: Production build
