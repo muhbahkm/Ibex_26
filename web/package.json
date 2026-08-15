@@ -1,0 +1,28 @@
+{
+  "name": "ibex-honey-web",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "audit:boundaries": "node scripts/audit-boundaries.mjs",
+    "test:contracts": "node --experimental-strip-types scripts/test-workspace-contracts.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/auth": "latest",
+    "@neondatabase/serverless": "^1.0.0",
+    "next": "^16.0.0",
+    "openai": "latest",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.0"
+  }
+}
