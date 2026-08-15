@@ -24,7 +24,7 @@ export function ReportsPanel({ initialOverview, initialTopProducts }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [rangeLabel, setRangeLabel] = useState('آخر 30 يومًا');
 
-  const totals = useMemo(() => overview.reduce((sum, row) => ({
+  const totals = useMemo(() => overview.reduce<{ sales: number; profit: number; remaining: number; collected: number }>((sum, row) => ({
     sales: sum.sales + Number(row.sales_total ?? 0),
     profit: sum.profit + Number(row.estimated_profit_total ?? 0),
     remaining: sum.remaining + Number(row.remaining_total ?? 0),
