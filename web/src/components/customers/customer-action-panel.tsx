@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
 
 type Currency = 'YER' | 'SAR' | 'USD';
 type BalanceRow = { currency?: unknown; balance?: unknown };
@@ -43,6 +43,7 @@ export function CustomerActionPanel({ customerId, balances, onReceiptCreated }: 
     .map((row) => ({ currency: String(row.currency) as Currency, balance: Number(row.balance ?? 0) }))
     .filter((row) => ['YER', 'SAR', 'USD'].includes(row.currency) && row.balance > 0), [balances]);
 
+  const receiptSubmitLock = useRef(false);
   const [mode, setMode] = useState<'none' | 'receipt' | 'statement'>('none');
   const [currency, setCurrency] = useState<Currency>(positiveBalances[0]?.currency ?? 'YER');
   const [amount, setAmount] = useState('');
@@ -81,7 +82,8 @@ export function CustomerActionPanel({ customerId, balances, onReceiptCreated }: 
   }
 
   async function confirmReceipt() {
-    if (!pendingReceipt || busy) return;
+    if (!pendingReceipt || receiptSubmitLock.current) return;
+    receiptSubmitLock.current = true;
     setBusy(true);
     setNotice(null);
     try {
@@ -100,6 +102,7 @@ export function CustomerActionPanel({ customerId, balances, onReceiptCreated }: 
     } catch (error) {
       setNotice(messageFor(error instanceof Error ? error.message : 'RECEIPT_CREATE_FAILED'));
     } finally {
+      receiptSubmitLock.current = false;
       setBusy(false);
     }
   }
@@ -171,7 +174,7 @@ export function CustomerActionPanel({ customerId, balances, onReceiptCreated }: 
         <div className="action-submit"><button disabled={busy || positiveBalances.length === 0} type="submit">مراجعة سند القبض</button></div>
         {positiveBalances.length === 0 && <small className="form-hint">لا توجد أرصدة موجبة قابلة للتحصيل.</small>}
       </form>
-      {pendingReceipt && <div className="inline-confirmation">
+      {pendingReceipt && <div className="inline-notice draft-card">
         <div><strong>راجع قبل الاعتماد</strong><p>سيتم تسجيل سند قبض بقيمة <b>{formatNumber(pendingReceipt.amount)} {pendingReceipt.currency}</b>. الرصيد قبل التحصيل {formatNumber(selectedBalance)}، والمتبقي المتوقع {formatNumber(selectedBalance - pendingReceipt.amount)}.</p></div>
         <div className="draft-actions"><button className="secondary" type="button" onClick={() => setPendingReceipt(null)} disabled={busy}>تعديل</button><button type="button" onClick={confirmReceipt} disabled={busy}>{busy ? 'جارٍ الاعتماد…' : 'اعتماد سند القبض'}</button></div>
       </div>}
