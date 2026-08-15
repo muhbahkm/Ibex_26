@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { CustomerActionPanel } from '@/components/customers/customer-action-panel';
 import { CustomersPanel } from '@/components/customers/customers-panel';
 import { DebtsPanel } from '@/components/debts/debts-panel';
+import { MobileNavigation } from '@/components/navigation/mobile-navigation';
 import { ReportsPanel } from '@/components/reports/reports-panel';
 import { TransactionDetailPanel } from '@/components/transactions/transaction-detail-panel';
 import { TransactionsPanel } from '@/components/transactions/transactions-panel';
@@ -133,9 +134,15 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessL
     return null;
   }
 
+  function changeSection(next: Section) {
+    setSection(next);
+    setDetail(null);
+  }
+
   return <main className="workspace">
-    <aside className="sidebar"><div className="brand"><span className="brand-mark small">B</span><div><strong>باحكم</strong><small>المساعد التشغيلي</small></div></div><nav>{tabs.map((tab) => <button key={tab.id} className={section === tab.id ? 'active' : ''} onClick={() => { setSection(tab.id); setDetail(null); }}>{tab.label}</button>)}</nav><div className="user-card"><span>{displayName}</span><small>{roleLabel}</small></div></aside>
+    <aside className="sidebar"><div className="brand"><span className="brand-mark small">B</span><div><strong>باحكم</strong><small>المساعد التشغيلي</small></div></div><nav>{tabs.map((tab) => <button key={tab.id} className={section === tab.id ? 'active' : ''} onClick={() => changeSection(tab.id)}>{tab.label}</button>)}</nav><div className="user-card"><span>{displayName}</span><small>{roleLabel}</small></div></aside>
     <section className="chat">
+      <MobileNavigation section={section} onChange={changeSection} />
       <header><div><h1>{sectionTitle(section)}</h1><p>{accountLinked ? businessLabel : 'تم تسجيل الدخول، لكن يلزم ربط الحساب بمستخدم IBEX قبل تنفيذ العمليات المالية.'}</p></div><span className={accountLinked ? 'status ok' : 'status warn'}>{accountLinked ? 'جاهز' : 'بحاجة إلى ربط'}</span></header>
       {section === 'chat' ? <>
         <div className="conversation">{state.kind === 'idle' && <div className="welcome-card"><strong>ابدأ بأمر طبيعي</strong><p>مثال: بع كيلو سمرة SI للزبون العام بـ 20000 YER نقدًا.</p><p className="muted">سأحوّل الأمر إلى مسودة، ولن أسجل الحركة قبل موافقتك.</p></div>}{state.kind === 'loading' && <div className="welcome-card"><strong>أحلل العملية…</strong><p>{state.message}</p></div>}{state.kind === 'clarification' && <div className="welcome-card"><strong>أحتاج تحديدًا بسيطًا</strong><p>{state.value.question}</p>{state.value.candidates.map((c) => <div key={c.id} className="candidate">{c.label}</div>)}</div>}{state.kind === 'draft' && <div className="welcome-card draft-card"><strong>مسودة فاتورة مبيعات</strong><div className="draft-grid"><span>العميل</span><b>{state.value.preview.customer_name}</b><span>الصنف</span><b>{state.value.preview.product_name}</b><span>الكمية</span><b>{state.value.preview.quantity} {state.value.preview.unit_name}</b><span>سعر الوحدة</span><b>{state.value.preview.unit_price} {state.value.preview.currency}</b><span>الإجمالي</span><b>{state.value.preview.total_amount} {state.value.preview.currency}</b><span>المدفوع</span><b>{state.value.preview.paid_amount} {state.value.preview.currency}</b><span>المتبقي</span><b>{state.value.preview.remaining_amount} {state.value.preview.currency}</b></div><div className="draft-actions"><button className="secondary" onClick={() => setState({ kind: 'idle' })}>إلغاء</button><button onClick={confirm}>اعتماد العملية</button></div></div>}{state.kind === 'success' && <div className="welcome-card"><strong>تم اعتماد العملية</strong><p>رقم العملية: <b>{state.transactionNo}</b></p><button onClick={() => setState({ kind: 'idle' })}>عملية جديدة</button></div>}{state.kind === 'error' && <div className="welcome-card"><strong>تعذر إكمال الطلب</strong><p>{state.message}</p><button onClick={() => setState({ kind: 'idle' })}>إعادة المحاولة</button></div>}</div>
