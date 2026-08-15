@@ -73,8 +73,8 @@ export function ReportsPanel({ initialOverview, initialTopProducts }: Props) {
         <div className="report-scope"><span>{rangeLabel}</span><b>{currency || 'كل العملات'}</b></div>
       </div>
       <form className="report-filters" onSubmit={applyFilters}>
-        <label><span>من</span><input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label>
-        <label><span>إلى</span><input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label>
+        <label><span>من</span><input lang="en" dir="ltr" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label>
+        <label><span>إلى</span><input lang="en" dir="ltr" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label>
         <label><span>العملة</span><select value={currency} onChange={(event) => setCurrency(event.target.value as Currency)}><option value="">كل العملات</option><option value="YER">YER</option><option value="SAR">SAR</option><option value="USD">USD</option></select></label>
         <button className="primary-filter" type="submit" disabled={busy}>{busy ? 'جارٍ التحديث…' : 'تطبيق'}</button>
         <button className="filter-reset" type="button" disabled={busy} onClick={resetFilters}>إعادة ضبط</button>
