@@ -1,19 +1,23 @@
+import {
+  businessOverviewRowsSchema,
+  customerBalancesSchema,
+  overdueCustomersSchema,
+  parseWorkspaceRows,
+  recentTransactionsSchema,
+  topProductsSchema,
+  type Currency,
+} from '@/lib/contracts/workspace';
 import { sql } from '@/lib/db/neon';
 
+export type {
+  BusinessOverview,
+  CustomerBalance,
+  OverdueCustomer,
+  RecentTransaction,
+  TopProduct,
+} from '@/lib/contracts/workspace';
+
 type IdentityArgs = { identity: string; businessId: string };
-
-type Currency = 'YER' | 'SAR' | 'USD';
-
-export type RecentTransaction = {
-  id: string; transaction_no: string; transaction_type: string; transaction_status: string;
-  transaction_datetime: string; currency: Currency; customer_name: string | null;
-  customer_phone: string | null; payment_status: string; total_amount: number; paid_amount: number;
-  remaining_amount: number; estimated_profit: number; cash_account_name: string | null; notes: string | null;
-};
-
-export type CustomerBalance = { customer_id: string; display_name: string; phone: string | null; currency: Currency; balance: number; last_transaction_at: string | null };
-export type OverdueCustomer = CustomerBalance & { last_ledger_activity_at: string | null; days_since_last_activity: number | null };
-export type BusinessOverview = { currency: Currency; sales_count: number; sales_total: number; purchases_count: number; purchases_total: number; receipts_total: number; payments_total: number; credit_sales_total: number; collected_total: number; remaining_total: number; estimated_profit_total: number; active_transactions_count: number; cancelled_transactions_count: number };
 
 function numberize<T extends Record<string, unknown>>(row: T, keys: string[]) {
   const result = { ...row } as Record<string, unknown>;
@@ -25,28 +29,27 @@ function identityCte(identity: string) { return identity; }
 
 export async function getRecentTransactions({ identity, businessId }: IdentityArgs, limit = 30) {
   const rows = await sql`with _identity as materialized (select set_config('app.current_user_id', ${identityCte(identity)}, true), set_config('app.auth_provider', 'neon_auth', true)) select t.* from _identity cross join lateral public.ibex_had_get_recent_transactions(${businessId}::uuid, ${limit}) t`;
-  return rows.map((row) => numberize(row as RecentTransaction, ['total_amount', 'paid_amount', 'remaining_amount', 'estimated_profit']));
+  return parseWorkspaceRows(recentTransactionsSchema, rows, 'recent-transactions');
 }
 
 export async function getCustomerBalances({ identity, businessId }: IdentityArgs, onlyPositive = false) {
   const rows = await sql`with _identity as materialized (select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', 'neon_auth', true)) select c.* from _identity cross join lateral public.ibex_had_get_customer_balances_report(${businessId}::uuid, ${onlyPositive}) c`;
-  return rows.map((row) => numberize(row as CustomerBalance, ['balance']));
+  return parseWorkspaceRows(customerBalancesSchema, rows, 'customer-balances');
 }
 
 export async function getOverdueCustomers({ identity, businessId }: IdentityArgs, days = 30) {
   const rows = await sql`with _identity as materialized (select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', 'neon_auth', true)) select c.* from _identity cross join lateral public.ibex_had_get_overdue_customers(${businessId}::uuid, ${days}) c`;
-  return rows.map((row) => numberize(row as OverdueCustomer, ['balance', 'days_since_last_activity']));
+  return parseWorkspaceRows(overdueCustomersSchema, rows, 'overdue-customers');
 }
 
 export async function getBusinessOverview({ identity, businessId }: IdentityArgs, days = 30) {
   const rows = await sql`with _identity as materialized (select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', 'neon_auth', true)) select o.* from _identity cross join lateral public.ibex_had_get_business_overview(${businessId}::uuid, current_date - ${days}::integer, current_date) o`;
-  const numericKeys = ['sales_count','sales_total','purchases_count','purchases_total','receipts_total','payments_total','credit_sales_total','collected_total','remaining_total','estimated_profit_total','active_transactions_count','cancelled_transactions_count'];
-  return rows.map((row) => numberize(row as BusinessOverview, numericKeys));
+  return parseWorkspaceRows(businessOverviewRowsSchema, rows, 'business-overview');
 }
 
 export async function getTopProducts({ identity, businessId }: IdentityArgs, days = 30) {
   const rows = await sql`with _identity as materialized (select set_config('app.current_user_id', ${identity}, true), set_config('app.auth_provider', 'neon_auth', true)) select p.* from _identity cross join lateral public.ibex_had_get_top_products(${businessId}::uuid, current_date - ${days}::integer, current_date, null, 8) p`;
-  return rows.map((row) => numberize(row as Record<string, unknown>, ['invoices_count','total_quantity','total_sales','total_estimated_profit']));
+  return parseWorkspaceRows(topProductsSchema, rows, 'top-products');
 }
 
 export async function getBusinessOverviewByRange({ identity, businessId }: IdentityArgs, dateFrom?: string, dateTo?: string) {
@@ -62,8 +65,7 @@ export async function getBusinessOverviewByRange({ identity, businessId }: Ident
       coalesce(${dateTo ?? null}::date, current_date)
     ) o
   `;
-  const numericKeys = ['sales_count','sales_total','purchases_count','purchases_total','receipts_total','payments_total','credit_sales_total','collected_total','remaining_total','estimated_profit_total','active_transactions_count','cancelled_transactions_count'];
-  return rows.map((row) => numberize(row as BusinessOverview, numericKeys));
+  return parseWorkspaceRows(businessOverviewRowsSchema, rows, 'business-overview-range');
 }
 
 export async function getTopProductsByRange({ identity, businessId }: IdentityArgs, dateFrom?: string, dateTo?: string, currency?: Currency) {
@@ -81,7 +83,7 @@ export async function getTopProductsByRange({ identity, businessId }: IdentityAr
       12
     ) p
   `;
-  return rows.map((row) => numberize(row as Record<string, unknown>, ['invoices_count','total_quantity','total_sales','total_estimated_profit']));
+  return parseWorkspaceRows(topProductsSchema, rows, 'top-products-range');
 }
 
 export async function getTransactionDetail({ identity, businessId }: IdentityArgs, transactionId: string) {
