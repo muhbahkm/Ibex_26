@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './manual-sale.css';
 
 export const metadata: Metadata = {
   title: 'باحكم | المساعد التشغيلي',
