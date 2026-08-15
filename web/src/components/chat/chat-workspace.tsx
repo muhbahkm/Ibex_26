@@ -141,7 +141,7 @@ export function ChatWorkspace({ displayName, roleLabel, accountLinked, businessI
     if (manualSale && section === 'transactions') return <ManualSalePanel businessId={businessId} onCancel={() => setManualSale(false)} onCreated={(id) => { void loadWorkspace('transactions'); void openDetail('transaction', id); }} />;
     if (detailLoading) return <div className="surface empty-state"><strong>جارٍ تحميل التفاصيل…</strong></div>;
     if (detail?.kind === 'customer') return renderCustomerDetail(detail.value);
-    if (detail?.kind === 'transaction') return <TransactionDetailPanel value={detail.value} onBack={() => setDetail(null)} onOpenCustomer={(id) => void openDetail('customer', id)} />;
+    if (detail?.kind === 'transaction') return <TransactionDetailPanel value={detail.value} onBack={() => setDetail(null)} onOpenCustomer={(id) => void openDetail('customer', id)} onCancelled={async (id) => { await loadWorkspace('transactions'); await openDetail('transaction', id); }} />;
     if (workspaceLoading) return <div className="surface empty-state"><strong>جارٍ تحميل البيانات…</strong></div>;
     if (workspaceError) return <div className="surface empty-state"><strong>تعذر تحميل البيانات</strong><p>{workspaceError}</p></div>;
     if (section === 'customers') return <CustomersPanel rows={workspace?.rows ?? []} onOpen={(id) => void openDetail('customer', id)} />;
