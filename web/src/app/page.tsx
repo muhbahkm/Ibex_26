@@ -16,6 +16,7 @@ export default async function HomePage() {
       displayName={session.user.name ?? session.user.email ?? 'مستخدم'}
       roleLabel={appUser?.role ?? 'الحساب غير مرتبط'}
       accountLinked={Boolean(appUser)}
+      businessId={appUser?.business_id ?? ''}
       businessLabel={appUser ? `متصل بالنشاط ${appUser.business_id.slice(0, 8)}…` : ''}
     />
   );
