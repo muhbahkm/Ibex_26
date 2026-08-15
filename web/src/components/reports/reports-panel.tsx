@@ -75,14 +75,15 @@ export function ReportsPanel({ initialOverview, initialTopProducts }: Props) {
         <button type="button" disabled={busy} onClick={resetFilters}>إعادة ضبط</button>
       </form>
       {error && <div className="inline-notice">{error}</div>}
+      {!currency && <div className="inline-notice">عند عرض كل العملات تبقى المؤشرات منفصلة حسب العملة، ولا يتم جمع YER وSAR وUSD في رقم واحد.</div>}
     </div>
 
-    <div className="balance-grid">
-      <div className="balance-card"><span>المبيعات</span><b>{formatNumber(totals.sales)}</b><small>{currency || 'حسب العملات'}</small></div>
-      <div className="balance-card"><span>الربح التقديري</span><b>{formatNumber(totals.profit)}</b><small>{currency || 'حسب العملات'}</small></div>
-      <div className="balance-card"><span>التحصيل</span><b>{formatNumber(totals.collected)}</b><small>{currency || 'حسب العملات'}</small></div>
-      <div className="balance-card"><span>المتبقي</span><b>{formatNumber(totals.remaining)}</b><small>{currency || 'حسب العملات'}</small></div>
-    </div>
+    {currency && <div className="balance-grid">
+      <div className="balance-card"><span>المبيعات</span><b>{formatNumber(totals.sales)}</b><small>{currency}</small></div>
+      <div className="balance-card"><span>الربح التقديري</span><b>{formatNumber(totals.profit)}</b><small>{currency}</small></div>
+      <div className="balance-card"><span>التحصيل</span><b>{formatNumber(totals.collected)}</b><small>{currency}</small></div>
+      <div className="balance-card"><span>المتبقي</span><b>{formatNumber(totals.remaining)}</b><small>{currency}</small></div>
+    </div>}
 
     <div className="report-grid">{overview.map((row) => <article className="metric-card" key={String(row.currency)}><div className="metric-title"><strong>{String(row.currency)}</strong><span>{rangeLabel}</span></div><div className="metric-main">{formatNumber(row.sales_total)}</div><small>إجمالي المبيعات</small><div className="metric-pairs"><div><span>الربح التقديري</span><b>{formatNumber(row.estimated_profit_total)}</b></div><div><span>المتبقي</span><b>{formatNumber(row.remaining_total)}</b></div><div><span>التحصيل</span><b>{formatNumber(row.collected_total)}</b></div><div><span>عدد المبيعات</span><b>{formatNumber(row.sales_count)}</b></div></div></article>)}</div>
 
