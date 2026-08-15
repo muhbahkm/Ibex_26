@@ -55,7 +55,7 @@ export function CustomerActionPanel({ customerId, balances, onReceiptCreated }: 
   const [statement, setStatement] = useState<StatementRow[]>([]);
 
   const selectedBalance = positiveBalances.find((row) => row.currency === currency)?.balance ?? 0;
-  const statementSummary = useMemo(() => statement.reduce((summary, row) => ({
+  const statementSummary = useMemo(() => statement.reduce<{ debit: number; credit: number; ending: number }>((summary, row) => ({
     debit: summary.debit + Number(row.debit_amount ?? 0),
     credit: summary.credit + Number(row.credit_amount ?? 0),
     ending: Number(row.balance_after ?? summary.ending),
