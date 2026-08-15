@@ -1,5 +1,5 @@
 import { getCurrentAppUser, withIdentityCall } from '@/lib/db/identity';
-import { searchCustomers, searchProducts, searchUnits } from '@/lib/db/lookups';
+import { getCustomerById, getProductById, getUnitById } from '@/lib/db/lookups';
 import { saleDraftSchema, type SaleDraft } from './contracts';
 
 export type ConfirmedSale = {
@@ -15,19 +15,18 @@ export type ConfirmedSale = {
 
 async function assertBusinessScopedReferences(authIdentity: string, businessId: string, draft: SaleDraft) {
   if (draft.customer_id) {
-    const customerQuery = draft.party_name || draft.party_phone || '';
-    const customers = await searchCustomers(authIdentity, businessId, customerQuery);
-    if (!customers.some((row) => row.id === draft.customer_id)) throw new Error('CUSTOMER_SCOPE_MISMATCH');
+    const customer = await getCustomerById(authIdentity, businessId, draft.customer_id);
+    if (!customer) throw new Error('CUSTOMER_SCOPE_MISMATCH');
   }
 
   for (const item of draft.items) {
     if (item.product_id) {
-      const products = await searchProducts(authIdentity, businessId, item.product_name);
-      if (!products.some((row) => row.id === item.product_id)) throw new Error('PRODUCT_SCOPE_MISMATCH');
+      const product = await getProductById(authIdentity, businessId, item.product_id);
+      if (!product) throw new Error('PRODUCT_SCOPE_MISMATCH');
     }
     if (item.unit_id) {
-      const units = await searchUnits(authIdentity, businessId, item.unit_name);
-      if (!units.some((row) => row.id === item.unit_id)) throw new Error('UNIT_SCOPE_MISMATCH');
+      const unit = await getUnitById(authIdentity, businessId, item.unit_id);
+      if (!unit) throw new Error('UNIT_SCOPE_MISMATCH');
     }
   }
 }
