@@ -34,7 +34,7 @@ export async function withIdentityCall<T>(identity: string, payload: unknown): P
         set_config('app.current_user_id', ${identity}, true),
         set_config('app.auth_provider', 'neon_auth', true)
     )
-    select public.ibex_had_create_transaction(${json}::jsonb) as result
+    select public.ibex_had_create_transaction_v2(${json}::jsonb) as result
     from _identity
   `;
 
